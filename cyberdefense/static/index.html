@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CyberDefenseAI — Autonomous SOC Command</title>
+
+  <!-- Typography: Inter + JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+
+  <!-- Offline-First Local Tailwind Bundle -->
+  <script src="tailwind.min.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'sans-serif'],
+            mono: ['JetBrains Mono', 'Menlo', 'monospace'],
+          },
+          colors: {
+            app: {
+              bg: '#090a0f',
+              surface: '#0e111a',
+              elevated: '#141824',
+              border: 'rgba(255, 255, 255, 0.08)',
+              hover: 'rgba(255, 255, 255, 0.12)',
+            },
+          },
+        },
+      },
+    };
+  </script>
+
+  <link rel="stylesheet" href="styles.css" />
+</head>
+
+<body class="bg-[#090a0f] text-slate-200 font-sans antialiased min-h-screen flex flex-col selection:bg-cyan-500/20 selection:text-cyan-200">
+
+  <!-- ═══════════════════════════════════════════════════════
+       TOP BAR — Clean, minimal, authoritative
+  ═══════════════════════════════════════════════════════ -->
+  <header class="sticky top-0 z-50 h-13 px-3 sm:px-6 flex items-center justify-between border-b border-white/[0.08] bg-[#090a0f]/95 backdrop-blur-md">
+    
+    <!-- Brand -->
+    <div class="flex items-center gap-2 sm:gap-3 select-none">
+      <div class="flex items-center gap-1.5 sm:gap-2">
+        <span class="status-pulse-dot bg-emerald-500"></span>
+        <span class="font-mono text-xs font-semibold tracking-wider text-slate-100 uppercase">
+          CyberDefense<span class="text-slate-500">::</span><span class="text-cyan-400">AI</span>
+        </span>
+      </div>
+      <span class="hidden sm:inline-block text-[10px] font-mono text-slate-400 bg-white/[0.03] border border-white/[0.06] px-2 py-0.5 rounded">AUTONOMOUS SOC</span>
+    </div>
+
+    <!-- Telemetry Badges (Subdued) -->
+    <div class="hidden md:flex items-center gap-2 font-mono text-[11px]">
+      <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/[0.02] border border-white/[0.06] text-slate-300">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+        ENGINE: <span id="engine-status" class="text-slate-200 font-medium">ONLINE</span>
+      </div>
+      <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white/[0.02] border border-white/[0.06] text-slate-300">
+        <span class="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
+        INTEL: <span class="text-slate-200 font-medium">OFFLINE-FIRST</span>
+      </div>
+    </div>
+
+    <!-- Header Actions -->
+    <div class="flex items-center gap-1.5 sm:gap-2">
+      <button id="btn-run-sim" onclick="triggerInBrowserSimulation()"
+        class="inline-flex items-center gap-1 px-2 sm:px-3 py-1.5 rounded-md text-xs font-mono font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/25 hover:bg-emerald-500/20 hover:border-emerald-500/40 transition-colors active:scale-[0.98]">
+        <span class="material-symbols-outlined text-[15px]">play_arrow</span>
+        <span class="hidden sm:inline">Simulate 5 Attacks</span>
+        <span class="sm:hidden">Simulate</span>
+      </button>
+
+      <button onclick="triggerResetDemo()"
+        class="inline-flex items-center justify-center p-1.5 sm:px-2.5 sm:py-1.5 rounded-md text-xs font-mono text-slate-400 bg-white/[0.02] border border-white/[0.08] hover:text-slate-200 hover:border-white/[0.16] hover:bg-white/[0.04] transition-colors active:scale-[0.98]"
+        title="Reset incident queue and containment rules">
+        <span class="material-symbols-outlined text-[15px]">refresh</span>
+        <span class="hidden sm:inline ml-1">Reset</span>
+      </button>
+
+      <button onclick="openManualOverrideModal()"
+        class="inline-flex items-center justify-center p-1.5 sm:px-3 sm:py-1.5 rounded-md text-xs font-mono text-slate-300 bg-white/[0.03] border border-white/[0.08] hover:text-slate-100 hover:border-white/[0.18] hover:bg-white/[0.06] transition-colors active:scale-[0.98]"
+        title="Manual SOAR Containment Dispatch">
+        <span class="material-symbols-outlined text-[15px]">security</span>
+        <span class="hidden sm:inline ml-1">Manual SOAR</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ═══════════════════════════════════════════════════════
+       DASHBOARD WORKSPACE
+  ═══════════════════════════════════════════════════════ -->
+  <main class="flex-1 flex flex-col gap-4 p-3 sm:p-6 max-w-[1720px] mx-auto w-full min-w-0">
+
+    <!-- ── METRICS BAR (Single High-Density Row) ── -->
+    <section class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+
+      <!-- Total Ingested -->
+      <div class="stat-card">
+        <div class="stat-label">Ingested Signals</div>
+        <div id="metric-total-alerts" class="stat-value text-slate-100">—</div>
+        <div class="stat-sub">Normalized events</div>
+      </div>
+
+      <!-- P1 Critical -->
+      <div class="stat-card stat-card-p1">
+        <div class="stat-label flex items-center gap-1 text-red-400/90">
+          <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+          P1 Critical
+        </div>
+        <div id="metric-p1-count" class="stat-value text-red-400">—</div>
+        <div class="stat-sub text-red-400/60">Active threats</div>
+      </div>
+
+      <!-- P2 High -->
+      <div class="stat-card stat-card-p2">
+        <div class="stat-label flex items-center gap-1 text-amber-400/90">
+          <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+          P2 High
+        </div>
+        <div id="metric-p2-count" class="stat-value text-amber-400">—</div>
+        <div class="stat-sub text-amber-400/60">Elevated risk</div>
+      </div>
+
+      <!-- Quarantined Hosts -->
+      <div class="stat-card">
+        <div class="stat-label flex items-center gap-1 text-slate-400">
+          <span class="material-symbols-outlined text-[13px] text-slate-400">lock</span>
+          Quarantined
+        </div>
+        <div id="metric-quarantined" class="stat-value text-slate-200">—</div>
+        <div class="stat-sub">Isolated hosts</div>
+      </div>
+
+      <!-- IP Firewall Blocks -->
+      <div class="stat-card">
+        <div class="stat-label flex items-center gap-1 text-slate-400">
+          <span class="material-symbols-outlined text-[13px] text-slate-400">block</span>
+          Blocked IPs
+        </div>
+        <div id="metric-blocked-ips" class="stat-value text-slate-200">—</div>
+        <div class="stat-sub">Firewall rules</div>
+      </div>
+
+      <!-- SOAR Actions -->
+      <div class="stat-card">
+        <div class="stat-label flex items-center gap-1 text-cyan-400/90">
+          <span class="material-symbols-outlined text-[13px] text-cyan-400">bolt</span>
+          SOAR Executed
+        </div>
+        <div id="metric-soar-actions" class="stat-value text-cyan-400">—</div>
+        <div class="stat-sub">Automated actions</div>
+      </div>
+    </section>
+
+    <!-- Hidden elements preserving API contract -->
+    <span id="metric-revoked-tokens" class="hidden">0</span>
+    <span id="metric-incidents-total" class="hidden">0</span>
+
+    <!-- ── PRIMARY WORKSPACE SPLIT ── -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 flex-1 min-h-[580px] min-w-0">
+
+      <!-- LEFT: Incident Queue (7 cols) -->
+      <div class="lg:col-span-7 flex flex-col panel-container min-w-0">
+        
+        <!-- Panel Header -->
+        <div class="panel-header">
+          <div class="flex items-center gap-2">
+            <span class="font-medium text-slate-200 text-[13px] tracking-tight">Active Incident Queue</span>
+            <span id="incident-badge-count" class="badge-subtle">0 Cases</span>
+          </div>
+
+          <!-- Severity Filters -->
+          <div class="flex items-center gap-1 bg-white/[0.02] p-0.5 rounded-md border border-white/[0.06]">
+            <button class="filter-btn active" data-filter="ALL" onclick="filterIncidents('ALL', this)">All</button>
+            <button class="filter-btn" data-filter="P1" onclick="filterIncidents('P1', this)">P1</button>
+            <button class="filter-btn" data-filter="P2" onclick="filterIncidents('P2', this)">P2</button>
+            <button class="filter-btn" data-filter="P3" onclick="filterIncidents('P3', this)">P3</button>
+          </div>
+        </div>
+
+        <!-- Incident Cards Stream -->
+        <div id="incident-container" class="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2">
+          <div class="empty-state">Connecting to pipeline stream...</div>
+        </div>
+      </div>
+
+      <!-- RIGHT: Intelligence & Telemetry Tabs (5 cols) -->
+      <div class="lg:col-span-5 flex flex-col panel-container min-w-0">
+
+        <!-- Tab Bar -->
+        <div class="tab-bar" role="tablist">
+          <button class="tab-btn active" onclick="switchRightTab('mitre', this)" role="tab">
+            <span class="material-symbols-outlined text-[15px]">grid_view</span>
+            MITRE Matrix
+          </button>
+          <button class="tab-btn" onclick="switchRightTab('soar', this)" role="tab">
+            <span class="material-symbols-outlined text-[15px]">shield</span>
+            Containment
+          </button>
+          <button class="tab-btn" onclick="switchRightTab('feed', this)" role="tab">
+            <span class="material-symbols-outlined text-[15px]">terminal</span>
+            Telemetry
+          </button>
+        </div>
+
+        <!-- Tab 1: MITRE ATT&CK Matrix -->
+        <div id="tab-content-mitre" class="flex-1 overflow-y-auto custom-scrollbar p-4 space-y-3">
+          <div class="flex items-center justify-between pb-2 border-b border-white/[0.06]">
+            <span class="text-[11px] font-mono text-slate-400 uppercase tracking-wider">Enterprise ATT&amp;CK Coverage</span>
+            <span id="mitre-coverage-count" class="badge-subtle">0 techniques</span>
+          </div>
+          <div id="mitre-matrix-container" class="space-y-3">
+            <div class="empty-state">Loading coverage matrix...</div>
+          </div>
+        </div>
+
+        <!-- Tab 2: SOAR Containment Registry -->
+        <div id="tab-content-soar" class="hidden flex-1 overflow-auto custom-scrollbar min-w-0">
+          <table class="w-full text-left border-collapse">
+            <thead class="sticky top-0 bg-[#0e111a] border-b border-white/[0.06] text-[10px] font-mono uppercase tracking-wider text-slate-400 z-10">
+              <tr>
+                <th class="px-3.5 py-2.5 whitespace-nowrap">Action</th>
+                <th class="px-3.5 py-2.5">Target</th>
+                <th class="px-3.5 py-2.5 whitespace-nowrap">Status</th>
+                <th class="px-3.5 py-2.5 whitespace-nowrap">Time</th>
+                <th class="px-3.5 py-2.5 text-right whitespace-nowrap">Control</th>
+              </tr>
+            </thead>
+            <tbody id="soar-actions-tbody" class="divide-y divide-white/[0.04]">
+              <tr><td colspan="5" class="text-center py-8 text-slate-500 font-mono text-xs">No active containment rules</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Tab 3: Real-Time Telemetry Feed -->
+        <div id="tab-content-feed" class="hidden flex-1 overflow-y-auto custom-scrollbar p-3 space-y-2">
+          <div class="flex items-center gap-2 pb-1 border-b border-white/[0.06]">
+            <span class="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
+            <span class="text-[10px] font-mono uppercase tracking-wider text-slate-400">Raw Ingestion Stream</span>
+          </div>
+          <div id="alert-stream-container" class="space-y-1.5">
+            <div class="empty-state">Listening to ingestion stream...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- ═══════════════════════════════════════════════════════
+       FOOTER BAR
+  ═══════════════════════════════════════════════════════ -->
+  <footer class="h-9 px-6 flex items-center justify-between border-t border-white/[0.06] bg-[#090a0f]/90 text-[11px] font-mono text-slate-500">
+    <div class="flex items-center gap-4">
+      <span>Ingested: <strong id="footer-alerts" class="text-slate-400 font-medium">—</strong></span>
+      <span class="text-slate-700">|</span>
+      <span>Incidents: <strong id="footer-incidents" class="text-slate-400 font-medium">—</strong></span>
+      <span class="text-slate-700">|</span>
+      <span>SOAR Actions: <strong id="footer-soar" class="text-slate-400 font-medium">—</strong></span>
+      <span class="text-slate-700">|</span>
+      <span>Reports: <strong id="footer-reports" class="text-slate-400 font-medium">—</strong></span>
+    </div>
+    <button onclick="openReportsListModal()"
+      class="text-slate-400 hover:text-slate-200 transition-colors flex items-center gap-1">
+      <span class="material-symbols-outlined text-[13px]">description</span>
+      View Investigation Reports
+    </button>
+  </footer>
+
+  <!-- ═══════════════════════════════════════════════════════
+       MODALS
+  ═══════════════════════════════════════════════════════ -->
+
+  <!-- Incident Details Modal -->
+  <div id="incident-modal" class="modal-backdrop hidden" onclick="if(event.target===this)closeIncidentModal()">
+    <div class="modal-panel w-full max-w-2xl">
+      <div class="modal-header">
+        <div>
+          <div class="text-[10px] font-mono uppercase tracking-wider text-slate-400 mb-0.5">Incident Investigation</div>
+          <h3 id="modal-incident-title" class="text-sm font-semibold text-slate-100"></h3>
+          <div id="modal-incident-id" class="text-[11px] font-mono text-slate-500 mt-0.5"></div>
+        </div>
+        <button onclick="closeIncidentModal()" class="modal-close-btn">
+          <span class="material-symbols-outlined text-[18px]">close</span>
+        </button>
+      </div>
+      <div id="modal-incident-body" class="p-5 space-y-4 max-h-[72vh] overflow-y-auto custom-scrollbar"></div>
+    </div>
+  </div>
+
+  <!-- Forensic Report Modal -->
+  <div id="report-modal" class="modal-backdrop hidden" onclick="if(event.target===this)closeReportModal()">
+    <div class="modal-panel w-full max-w-4xl h-[85vh] flex flex-col">
+      <div class="modal-header flex-shrink-0">
+        <div>
+          <div class="text-[10px] font-mono uppercase tracking-wider text-slate-400 mb-0.5">Autonomous Forensic Report</div>
+          <div id="modal-report-incident-id" class="text-xs font-mono text-cyan-400"></div>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="printReportIframe()"
+            class="inline-flex items-center gap-1 px-3 py-1 rounded text-xs font-mono text-slate-300 bg-white/[0.04] border border-white/[0.1] hover:bg-white/[0.08] hover:text-white transition-colors">
+            <span class="material-symbols-outlined text-[14px]">print</span>Print / PDF
+          </button>
+          <button onclick="closeReportModal()" class="modal-close-btn">
+            <span class="material-symbols-outlined text-[18px]">close</span>
+          </button>
+        </div>
+      </div>
+      <iframe id="report-iframe" src="about:blank" class="flex-1 w-full bg-white border-0"></iframe>
+    </div>
+  </div>
+
+  <!-- Manual SOAR Override Modal -->
+  <div id="override-modal" class="modal-backdrop hidden" onclick="if(event.target===this)closeManualOverrideModal()">
+    <div class="modal-panel w-full max-w-md">
+      <div class="modal-header">
+        <div>
+          <div class="text-[10px] font-mono uppercase tracking-wider text-slate-400 mb-0.5">Manual Containment Override</div>
+          <h3 class="text-sm font-semibold text-slate-100">Dispatch SOAR Action</h3>
+        </div>
+        <button onclick="closeManualOverrideModal()" class="modal-close-btn">
+          <span class="material-symbols-outlined text-[18px]">close</span>
+        </button>
+      </div>
+      <div class="p-5 space-y-3.5">
+        <div>
+          <label class="block text-[10px] font-mono uppercase tracking-wider text-slate-400 mb-1">Action Type</label>
+          <select id="override-action-type" class="form-input">
+            <option value="BLOCK_FIREWALL_IP">BLOCK_FIREWALL_IP</option>
+            <option value="QUARANTINE_HOST">QUARANTINE_HOST</option>
+            <option value="REVOKE_USER_TOKEN">REVOKE_USER_TOKEN</option>
+            <option value="TERMINATE_PROCESS">TERMINATE_PROCESS</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-[10px] font-mono uppercase tracking-wider text-slate-400 mb-1">Target (IP / Hostname / Token)</label>
+          <input id="override-target" type="text" class="form-input" placeholder="e.g. 198.51.100.23" />
+        </div>
+        <div>
+          <label class="block text-[10px] font-mono uppercase tracking-wider text-slate-400 mb-1">Operator Justification</label>
+          <input id="override-reason" type="text" class="form-input" placeholder="Manual analyst containment order..." />
+        </div>
+        <div class="flex gap-2 pt-2">
+          <button onclick="closeManualOverrideModal()" class="flex-1 py-1.5 rounded text-xs font-mono text-slate-400 bg-white/[0.02] border border-white/[0.08] hover:bg-white/[0.05] transition-colors">Cancel</button>
+          <button onclick="submitManualOverride()" class="flex-1 py-1.5 rounded text-xs font-mono font-medium text-slate-900 bg-cyan-400 hover:bg-cyan-300 transition-colors">Dispatch Action</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="dashboard.js"></script>
+</body>
+</html>
